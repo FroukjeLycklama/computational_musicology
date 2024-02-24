@@ -1,0 +1,50 @@
+---
+title: "Computational musicology week 7"
+output: 
+  flexdashboard::flex_dashboard:
+    storyboard: true
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+Use ggplot2 to create one or more data visualisations of track-level Spotify features for your corpus. Focus on the quality of the visualisations rather than quantity. In particular, consider some of Tufte’s classical design principles.
+
+- Have you maximised the amount of data displayed in your visualisation, making full use of ggplot2 tools like colour, fill, faceting, and text labels for outliers?
+- Have you reduced extraneous ‘chart junk’ as much as possible, for example, by replacing legends with text labels and making thoughtful choices about the axis limits and labels?
+- Does your visualisation have a clear story to tell that invokes curiosity about your research question?
+
+```{r include = FALSE}
+library(tidyverse)
+library(spotifyr)
+library(plotly)
+```
+
+
+``` {r echo = FALSE}
+every_john_mayer_song <- get_playlist_audio_features("", "2qqXQAmdsRhFliOmiSrHNC?si=97d16562f6374086")
+album_groups <- every_john_mayer_song %>%
+  group_by(track.album.name) %>%
+  mutate(mean_energy = mean(energy),
+         liveness_category = cut(liveness, breaks = c(-Inf, 0.33, 0.66, Inf),
+                                 labels = c("Low liveness", "Medium liveness", "High liveness"))) %>%
+  filter(n() >= 5, !is.na(energy)) %>%
+  distinct(track.album.name, .keep_all = TRUE) %>%
+  arrange(track.album.release_date)
+
+graph1 = ggplot(album_groups %>%
+           filter(!is.na(energy)), 
+         aes(x = reorder(track.album.name, track.album.release_date), 
+             y = mean_energy, 
+             fill = liveness_category)) +
+    geom_col(width = 0.8, position = position_dodge(width = 1.5)) +
+    theme(axis.text.x = element_text(angle = 45, hjust = 1),
+          axis.title.x = element_text(vjust = 1.5),
+          plot.margin = margin(0.5, 0.5, 0.5, 3, "cm"),
+          plot.title = element_text(hjust = 0.5, vjust = 2)) +
+    labs(fill = "Liveness category", x = "Album", y = "Mean energy",
+         title = "Mean energy per John Mayer album \n(with 5 or more songs), compared to the liveness per album")
+
+ggplotly(graph1)
+```

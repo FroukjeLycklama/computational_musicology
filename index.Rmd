@@ -1,30 +1,129 @@
 ---
 title: "John Mayer Corpus"
 author: "Froukje Lycklama à Nijeholt"
-date: "2/24/2024"
-output: html_document
+output: 
+  flexdashboard::flex_dashboard:
+    storyboard: true
+    theme: journal
+    vertical_layout: fill
+    orientation: columns
 ---
+
+### Introduction 
 
 ```{r setup, include=FALSE}
 knitr::opts_chunk$set(echo = TRUE)
+library(flexdashboard)
 ```
 
-## R Markdown
+The corpus that I chose is the music of John Mayer. 
 
-This is an R Markdown document. Markdown is a simple formatting syntax for authoring HTML, PDF, and MS Word documents. For more details on using R Markdown see <http://rmarkdown.rstudio.com>.
+John Mayer's corpus includes the genres of pop, blues, rock, and folk, showcasing his virtuosity as a guitarist, songwriter, and vocalist. John Mayer has been my top listened artist for the past 4 years now, so I know a lot of his music and enjoy listening to him. 
 
-When you click the **Knit** button a document will be generated that includes both content as well as the output of any embedded R code chunks within the document. You can embed an R code chunk like this:
+Within this corpus, we can identify natural groupings based on albums, collaborations, and thematic elements. Each album represents a distinct chapter in Mayer's career, marked by shifts in musical style, personal growth, and creative experimentation. I anticipate discovering variations in instrumentation, production techniques, and lyrical themes across these albums, while also recognizing recurring motifs and stylistic signatures that define Mayer's sound.
 
-```{r cars}
-summary(cars)
+Ensuring the representativeness of the corpus poses a challenge, as variations between studio and live recordings, as well as the availability of rare or unreleased tracks on Spotify, may impact the comprehensiveness of my analysis. Additionally, while Mayer's music spans multiple genres, including pop, blues, and folk, there may be gaps in coverage or discrepancies in genre classification that warrant consideration.
+
+Among the tracks in the corpus, certain songs emerge as particularly typical or atypical examples of Mayer's oeuvre. For instance, "Gravity" exemplifies Mayer's soulful vocals and emotive guitar playing, while "The Heart of Life" showcases his knack for crafting poignant, introspective ballads. Conversely, tracks like "Neon" stand out for their intricate guitar work and unconventional song structures, challenging traditional notions of pop songwriting.
+
+
+### How does the energy of John Mayer's albums relate to the liveness?
+
+
+```{r include = FALSE}
+library(tidyverse)
+library(spotifyr)
+library(plotly)
+library(compmus)
 ```
 
-## Including Plots
 
-You can also embed plots, for example:
+``` {r echo = FALSE}
+every_john_mayer_song <- get_playlist_audio_features("", "2qqXQAmdsRhFliOmiSrHNC?si=97d16562f6374086")
+album_groups <- every_john_mayer_song %>%
+  group_by(track.album.name) %>%
+  mutate(mean_energy = mean(energy),
+         liveness_category = cut(liveness, breaks = c(-Inf, 0.33, 0.66, Inf),
+                                 labels = c("Low liveness", "Medium liveness", "High liveness"))) %>%
+  filter(n() >= 5, !is.na(energy)) %>%
+  distinct(track.album.name, .keep_all = TRUE) %>%
+  arrange(track.album.release_date)
 
-```{r pressure, echo=FALSE}
-plot(pressure)
+graph1 = ggplot(album_groups %>%
+           filter(!is.na(energy)), 
+         aes(x = reorder(track.album.name, liveness), 
+             y = mean_energy, 
+             fill = liveness_category)) +
+    geom_col(width = 0.8, position = position_dodge(width = 1.5)) +
+    theme(axis.text.x = element_text(angle = 45, hjust = 1),
+          axis.title.x = element_text(vjust = 1.5),
+          plot.margin = margin(0.5, 0.5, 0.5, 3, "cm"),
+          plot.title = element_text(hjust = 0.5, vjust = 2)) +
+    labs(fill = "Liveness category", x = "Album", y = "Mean energy",
+         title = "Mean energy per John Mayer album \n(with 5 or more songs), compared to the liveness per album")
+
+ggplotly(graph1)
 ```
 
-Note that the `echo = FALSE` parameter was added to the code chunk to prevent printing of the R code that generated the plot.
+*** 
+For this plot, I took the playlist "Every John Mayer song, ever". This playlist has all the songs that John Mayer plays/sings on on spotity. I grouped the songs in albums, and made sure to only include albums with 5 or more songs on it. Then I took the mean energy and made a bar plot. I filled the plot according to the liveness of the albums. 
+
+### Comparing studio and live versions of 'Bold as Love'
+
+``` {r wood, echo = FALSE}
+
+bold <-        
+  get_tidy_audio_analysis("50DMG6AvtNzbrxMc62w6ph") |>
+  select(segments) |>
+  unnest(segments) |>
+  select(start, duration, pitches)
+
+bold |>
+  mutate(pitches = map(pitches, compmus_normalise, "euclidean")) |>
+  compmus_gather_chroma() |> 
+  ggplot(
+    aes(
+      x = start + duration / 2,
+      width = duration,
+      y = pitch_class,
+      fill = value
+    )
+  ) +
+  geom_tile() +
+  labs(x = "Time (s)", y = NULL, fill = "Magnitude", title = "Bold as love (Studio Version)") +
+  theme_minimal() +
+  scale_fill_viridis_c()
+
+
+bold_live <-        
+  get_tidy_audio_analysis("72UCrt0G2z6QQkvzEw9dGQ") |>
+  select(segments) |>
+  unnest(segments) |>
+  select(start, duration, pitches)
+
+bold_live |>
+  mutate(pitches = map(pitches, compmus_normalise, "euclidean")) |>
+  compmus_gather_chroma() |> 
+  ggplot(
+    aes(
+      x = start + duration / 2,
+      width = duration,
+      y = pitch_class,
+      fill = value
+    )
+  ) +
+  geom_tile() +
+  labs(x = "Time (s)", y = NULL, fill = "Magnitude", title = "Bold as love (Live Version)") +
+  theme_minimal() +
+  scale_fill_viridis_c()
+
+```
+
+***
+This is a chromagram of John Mayer's cover of Jimi Hendrix' 'Bold as Love'. The first chromagram displays the studio version, and the second one the live version. 
+
+**There are some noticeable differences:**
+
+- The studio version is shorter than the live version.
+- The studio version is more consitant than the live version. The C#, D#, F# and G# notes come back throughout the song. In the live version, mostly the C# and G# are represented throughout the song. This is logical, because the song is in the key of C#, and G# is the fifth of this key. 
+- In the live version, there is a 'gap' in the middle of the song. This is because from 160 seconds until 320 seconds, John Mayer talks to the audience, with little background music. From 320 seconds onward, the high B notes also have a large magnitude. 
